@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/quiz_service.dart';
+import 'question_detail_screen.dart';
 
 class QuizScreen extends StatefulWidget {
   const QuizScreen({super.key});
@@ -58,6 +59,15 @@ class _QuizScreenState extends State<QuizScreen> {
 
                 child: ListTile(
                   title: Text(question['question']),
+                  trailing: const Icon(Icons.arrow_forward),
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => QuestionDetailScreen(question: question),
+                      ),
+                    );
+                  },
                 ),
               );
             },
