@@ -1,10 +1,56 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:sensors_plus/sensors_plus.dart';
+
 import 'quiz_screen.dart';
 import 'create_quiz_screen.dart';
 import 'settings_screen.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  Color backgroundColor = Colors.white;
+  StreamSubscription? accelerometerSubscription;
+
+  double x = 0;
+  double y = 0;
+  double z = 0;
+
+  bool isRed = false;
+
+  @override
+  void initState() {
+    super.initState();
+
+    accelerometerSubscription = accelerometerEventStream().listen((event) {
+      double movement = event.x.abs() + event.y.abs() + event.z.abs();
+
+      setState(() {
+        x = event.x;
+        y = event.y;
+        z = event.z;
+
+        if (movement > 15 && !isRed) {
+          backgroundColor = Colors.red;
+          isRed = true;
+        } else if (movement <= 15 && isRed) {
+          backgroundColor = Colors.white;
+          isRed = false;
+        }
+      });
+    });
+  }
+
+  @override
+  void dispose() {
+    accelerometerSubscription?.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -12,15 +58,14 @@ class HomeScreen extends StatelessWidget {
         MediaQuery.of(context).orientation == Orientation.landscape;
 
     return Scaffold(
+      backgroundColor: backgroundColor,
       appBar: AppBar(
         title: const Text('Quiz Master'),
         centerTitle: true,
       ),
-
       body: Center(
         child: Padding(
           padding: const EdgeInsets.all(20),
-
           child: isLandscape
               ? Row(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -37,6 +82,7 @@ class HomeScreen extends StatelessWidget {
 
   List<Widget> menuButtons(BuildContext context) {
     return [
+
       ElevatedButton(
         child: const Text('Start Quiz'),
         onPressed: () {
