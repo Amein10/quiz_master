@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../services/quiz_service.dart';
 import 'question_detail_screen.dart';
+import '../services/quiz_service.dart';
+import '../repositories/quiz_repository.dart';
 
 class QuizScreen extends StatefulWidget {
   const QuizScreen({super.key});
@@ -11,14 +13,16 @@ class QuizScreen extends StatefulWidget {
 
 class _QuizScreenState extends State<QuizScreen> {
 
-  final QuizService quizService = QuizService();
+  final QuizRepository quizRepository = QuizRepository(
+    quizService: QuizService(),
+  );
 
   late Future<List<dynamic>> questions;
 
   @override
   void initState() {
     super.initState();
-    questions = quizService.fetchQuestions();
+    questions = quizRepository.getQuestions();
   }
 
   @override
