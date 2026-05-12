@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../repositories/quiz_repository.dart';
 import '../services/quiz_service.dart';
 
@@ -10,24 +11,36 @@ class CreateQuizScreen extends StatefulWidget {
 }
 
 class _CreateQuizScreenState extends State<CreateQuizScreen> {
-  final questionController = TextEditingController();
-  final answerAController = TextEditingController();
-  final answerBController = TextEditingController();
-  final answerCController = TextEditingController();
-  final answerDController = TextEditingController();
+  // Controllers bruges til at læse teksten fra inputfelterne.
+  final TextEditingController questionController = TextEditingController();
+  final TextEditingController answerAController = TextEditingController();
+  final TextEditingController answerBController = TextEditingController();
+  final TextEditingController answerCController = TextEditingController();
+  final TextEditingController answerDController = TextEditingController();
 
+  // Repository bruges til at gemme brugerens egne spørgsmål lokalt.
+  // QuizService sendes ind via simpel Dependency Injection.
   final QuizRepository quizRepository = QuizRepository(
     quizService: QuizService(),
   );
 
   String correctAnswer = 'A';
 
+  // Tjekker om alle felter er udfyldt.
+  // trim() fjerner mellemrum, så brugeren ikke kan gemme tomme svar.
+  bool formIsValid() {
+    return questionController.text.trim().isNotEmpty &&
+        answerAController.text.trim().isNotEmpty &&
+        answerBController.text.trim().isNotEmpty &&
+        answerCController.text.trim().isNotEmpty &&
+        answerDController.text.trim().isNotEmpty;
+  }
+
+  // Gemmer brugerens spørgsmål som et custom quiz-spørgsmål.
+  // Spørgsmålet bygges i samme format som API-spørgsmålene,
+  // så resten af appen kan bruge det på samme måde.
   Future<void> saveQuiz() async {
-    if (questionController.text.isEmpty ||
-        answerAController.text.isEmpty ||
-        answerBController.text.isEmpty ||
-        answerCController.text.isEmpty ||
-        answerDController.text.isEmpty) {
+    if (!formIsValid()) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Please fill out all fields'),
@@ -36,15 +49,15 @@ class _CreateQuizScreenState extends State<CreateQuizScreen> {
       return;
     }
 
-    final answers = {
-      'A': answerAController.text,
-      'B': answerBController.text,
-      'C': answerCController.text,
-      'D': answerDController.text,
+    final Map<String, String> answers = {
+      'A': answerAController.text.trim(),
+      'B': answerBController.text.trim(),
+      'C': answerCController.text.trim(),
+      'D': answerDController.text.trim(),
     };
 
-    final customQuestion = {
-      'question': questionController.text,
+    final Map<String, dynamic> customQuestion = {
+      'question': questionController.text.trim(),
       'correct_answer': answers[correctAnswer],
       'incorrect_answers': answers.entries
           .where((entry) => entry.key != correctAnswer)
@@ -60,6 +73,12 @@ class _CreateQuizScreenState extends State<CreateQuizScreen> {
       ),
     );
 
+    clearForm();
+  }
+
+  // Rydder formularen efter et spørgsmål er gemt.
+  // Det gør det nemt for brugeren at oprette endnu et spørgsmål.
+  void clearForm() {
     questionController.clear();
     answerAController.clear();
     answerBController.clear();
@@ -73,14 +92,19 @@ class _CreateQuizScreenState extends State<CreateQuizScreen> {
 
   @override
   void dispose() {
+    // Controllers skal dispose, når skærmen lukkes.
+    // Det forhindrer unødigt hukommelsesforbrug.
     questionController.dispose();
     answerAController.dispose();
     answerBController.dispose();
     answerCController.dispose();
     answerDController.dispose();
+
     super.dispose();
   }
 
+  // Genbrugelig widget til svarfelterne.
+  // Den gør koden kortere, fordi Answer A-D bruger samme layout.
   Widget answerField(String label, TextEditingController controller) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
@@ -102,14 +126,20 @@ class _CreateQuizScreenState extends State<CreateQuizScreen> {
         title: const Text('Create Quiz'),
         centerTitle: true,
       ),
+
+      // SingleChildScrollView sikrer, at formularen kan scrolles,
+      // især når tastaturet åbnes eller skærmen er lille.
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
+
         child: Card(
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(20),
           ),
+
           child: Padding(
             padding: const EdgeInsets.all(20),
+
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
@@ -158,6 +188,7 @@ class _CreateQuizScreenState extends State<CreateQuizScreen> {
                   ),
                 ),
 
+                // Dropdown bruges til at vælge, hvilket svar der er korrekt.
                 DropdownButton<String>(
                   value: correctAnswer,
                   isExpanded: true,
@@ -168,8 +199,10 @@ class _CreateQuizScreenState extends State<CreateQuizScreen> {
                     DropdownMenuItem(value: 'D', child: Text('Answer D')),
                   ],
                   onChanged: (value) {
+                    if (value == null) return;
+
                     setState(() {
-                      correctAnswer = value!;
+                      correctAnswer = value;
                     });
                   },
                 ),

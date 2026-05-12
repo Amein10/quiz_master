@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import 'result_screen.dart';
 
 class QuestionDetailScreen extends StatefulWidget {
@@ -19,6 +20,7 @@ class QuestionDetailScreen extends StatefulWidget {
 
 class _QuestionDetailScreenState extends State<QuestionDetailScreen> {
   late List<String> answers;
+
   String selectedAnswer = '';
   bool hasAnswered = false;
   late int currentScore;
@@ -28,7 +30,13 @@ class _QuestionDetailScreenState extends State<QuestionDetailScreen> {
     super.initState();
 
     currentScore = widget.score;
+    loadAnswers();
+  }
 
+  // Henter svarmulighederne for det aktuelle spørgsmål.
+  // Det korrekte svar og de forkerte svar samles i én liste.
+  // Listen blandes bagefter, så det korrekte svar ikke altid står samme sted.
+  void loadAnswers() {
     final question = widget.questions[widget.currentIndex];
 
     answers = [
@@ -39,6 +47,8 @@ class _QuestionDetailScreenState extends State<QuestionDetailScreen> {
     answers.shuffle();
   }
 
+  // API'et returnerer nogle gange HTML-tegn som &quot; og &#039;.
+  // Denne metode gør teksten mere læsbar for brugeren.
   String cleanText(String text) {
     return text
         .replaceAll('&quot;', '"')
@@ -50,11 +60,13 @@ class _QuestionDetailScreenState extends State<QuestionDetailScreen> {
         .replaceAll('&rdquo;', '"');
   }
 
+  // Kører når brugeren vælger et svar.
+  // Brugeren kan kun svare én gang på hvert spørgsmål.
+  // Hvis svaret er korrekt, bliver scoren forhøjet med 1.
   void checkAnswer(String answer) {
     if (hasAnswered) return;
 
-    final correctAnswer =
-    widget.questions[widget.currentIndex]['correct_answer'].toString();
+    final correctAnswer = getCorrectAnswer();
 
     setState(() {
       selectedAnswer = answer;
@@ -66,19 +78,34 @@ class _QuestionDetailScreenState extends State<QuestionDetailScreen> {
     });
   }
 
+  // Returnerer det korrekte svar for det aktuelle spørgsmål.
+  // Metoden gør resten af koden mere læsbar.
+  String getCorrectAnswer() {
+    return widget.questions[widget.currentIndex]['correct_answer'].toString();
+  }
+
+  // Bestemmer farven på hvert svar efter brugeren har svaret.
+  // Korrekt svar bliver grønt, og brugerens forkerte valg bliver rødt.
   Color getAnswerColor(String answer) {
-    final correctAnswer =
-    widget.questions[widget.currentIndex]['correct_answer'].toString();
+    final correctAnswer = getCorrectAnswer();
 
-    if (!hasAnswered) return Colors.white;
+    if (!hasAnswered) {
+      return Colors.white;
+    }
 
-    if (answer == correctAnswer) return Colors.green.shade100;
+    if (answer == correctAnswer) {
+      return Colors.green.shade100;
+    }
 
-    if (answer == selectedAnswer) return Colors.red.shade100;
+    if (answer == selectedAnswer) {
+      return Colors.red.shade100;
+    }
 
     return Colors.white;
   }
 
+  // Går videre til næste spørgsmål.
+  // Hvis brugeren er ved sidste spørgsmål, vises resultatskærmen i stedet.
   void goToNextQuestion() {
     final nextIndex = widget.currentIndex + 1;
 
@@ -93,23 +120,24 @@ class _QuestionDetailScreenState extends State<QuestionDetailScreen> {
           ),
         ),
       );
-    } else {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (_) => ResultScreen(
-            score: currentScore,
-            totalQuestions: widget.questions.length,
-          ),
-        ),
-      );
+      return;
     }
+
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ResultScreen(
+          score: currentScore,
+          totalQuestions: widget.questions.length,
+        ),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final question = widget.questions[widget.currentIndex];
-    final correctAnswer = question['correct_answer'].toString();
+    final correctAnswer = getCorrectAnswer();
 
     return Scaffold(
       backgroundColor: Colors.blueGrey.shade50,
@@ -118,6 +146,7 @@ class _QuestionDetailScreenState extends State<QuestionDetailScreen> {
         centerTitle: true,
       ),
 
+      // ScrollView gør skærmen fleksibel, hvis spørgsmålet eller svarene fylder meget.
       body: SingleChildScrollView(
         child: Padding(
           padding: const EdgeInsets.all(18),
@@ -136,6 +165,7 @@ class _QuestionDetailScreenState extends State<QuestionDetailScreen> {
 
               const SizedBox(height: 16),
 
+              // Spørgsmålet vises i et Card, så det adskilles tydeligt fra svarene.
               Card(
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(20),
@@ -155,48 +185,22 @@ class _QuestionDetailScreenState extends State<QuestionDetailScreen> {
 
               const SizedBox(height: 20),
 
+              // Bygger svarmulighederne dynamisk ud fra answers-listen.
+              // Hvert svar får et bogstav: A, B, C og D.
               ...answers.asMap().entries.map((entry) {
                 final index = entry.key;
                 final answer = entry.value;
                 final letter = String.fromCharCode(65 + index);
 
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 10),
-                  child: Material(
-                    color: getAnswerColor(answer),
-                    borderRadius: BorderRadius.circular(16),
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(16),
-                      onTap: () {
-                        checkAnswer(answer);
-                      },
-                      child: Padding(
-                        padding: const EdgeInsets.all(14),
-                        child: Row(
-                          children: [
-                            CircleAvatar(
-                              backgroundColor: Colors.green.shade100,
-                              child: Text(letter),
-                            ),
-
-                            const SizedBox(width: 16),
-
-                            Expanded(
-                              child: Text(
-                                cleanText(answer),
-                                style: const TextStyle(fontSize: 15),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
+                return answerButton(
+                  letter: letter,
+                  answer: answer,
                 );
               }),
 
               const SizedBox(height: 20),
 
+              // Feedback vises først efter brugeren har valgt et svar.
               if (hasAnswered)
                 Text(
                   selectedAnswer == correctAnswer
@@ -214,6 +218,8 @@ class _QuestionDetailScreenState extends State<QuestionDetailScreen> {
 
               const SizedBox(height: 20),
 
+              // Knappen vises først, når brugeren har svaret.
+              // På sidste spørgsmål ændres teksten til "Show Result".
               if (hasAnswered)
                 SizedBox(
                   height: 50,
@@ -228,6 +234,47 @@ class _QuestionDetailScreenState extends State<QuestionDetailScreen> {
                   ),
                 ),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // Genbrugelig widget til svarmulighederne.
+  // Material + InkWell giver en tydelig klik-effekt og pænt afrundede hjørner.
+  Widget answerButton({
+    required String letter,
+    required String answer,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Material(
+        color: getAnswerColor(answer),
+        borderRadius: BorderRadius.circular(16),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: () {
+            checkAnswer(answer);
+          },
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Row(
+              children: [
+                CircleAvatar(
+                  backgroundColor: Colors.green.shade100,
+                  child: Text(letter),
+                ),
+
+                const SizedBox(width: 16),
+
+                Expanded(
+                  child: Text(
+                    cleanText(answer),
+                    style: const TextStyle(fontSize: 15),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
