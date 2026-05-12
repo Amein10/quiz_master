@@ -1,8 +1,8 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:sensors_plus/sensors_plus.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
+import '../app_settings.dart';
 import 'quiz_screen.dart';
 import 'create_quiz_screen.dart';
 import 'settings_screen.dart';
@@ -19,21 +19,24 @@ class _HomeScreenState extends State<HomeScreen> {
   StreamSubscription? accelerometerSubscription;
 
   bool sensorIsActive = false;
-  String userName = 'Guest';
 
   @override
   void initState() {
     super.initState();
 
-    loadUserName();
-
     // Lytter til accelerometeret på enheden.
-    // Når mobilen roteres eller rystes, ændres X/Y/Z-værdierne.
-    // Her bruger vi værdierne til at ændre baggrundsfarven.
+    // Sensoren bruges til at ændre baggrundsfarven,
+    // hvis Motion Effects er slået til i Settings.
     accelerometerSubscription = accelerometerEventStream().listen((event) {
       double movement = event.x.abs() + event.y.abs() + event.z.abs();
 
       setState(() {
+        if (!motionEffectsNotifier.value) {
+          backgroundColor = Colors.blueGrey.shade50;
+          sensorIsActive = false;
+          return;
+        }
+
         if (movement > 15 && !sensorIsActive) {
           backgroundColor = Colors.green.shade100;
           sensorIsActive = true;
@@ -45,20 +48,9 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
-  // Henter brugerens gemte navn fra SharedPreferences.
-  // Hvis der ikke er gemt et navn endnu, bruges "Guest".
-  Future<void> loadUserName() async {
-    final prefs = await SharedPreferences.getInstance();
-
-    setState(() {
-      userName = prefs.getString('username') ?? 'Guest';
-    });
-  }
-
   @override
   void dispose() {
     // Stopper sensor-listeneren, når skærmen lukkes.
-    // Det forhindrer unødigt ressourceforbrug.
     accelerometerSubscription?.cancel();
     super.dispose();
   }
@@ -66,7 +58,6 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     // Tjekker om mobilen er i landscape eller portrait.
-    // Det bruges til at ændre layoutet responsivt.
     final isLandscape =
         MediaQuery.of(context).orientation == Orientation.landscape;
 
@@ -76,12 +67,13 @@ class _HomeScreenState extends State<HomeScreen> {
         title: const Text('Quiz Master'),
         centerTitle: true,
       ),
+
       body: Center(
         child: Padding(
           padding: const EdgeInsets.all(24),
 
-          // I landscape vises knapperne ved siden af hinanden.
-          // SingleChildScrollView forhindrer overflow på små skærme.
+          // Landscape: knapper ved siden af hinanden.
+          // ScrollView forhindrer overflow på små skærme.
           child: isLandscape
               ? SingleChildScrollView(
             scrollDirection: Axis.horizontal,
@@ -91,7 +83,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           )
 
-          // I portrait vises appens titel, brugernavn, beskrivelse og knapper lodret.
+          // Portrait: komplet startside med titel, navn og knapper.
               : Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -113,12 +105,17 @@ class _HomeScreenState extends State<HomeScreen> {
 
               const SizedBox(height: 10),
 
-              Text(
-                'Welcome, $userName',
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w500,
-                ),
+              ValueListenableBuilder<String>(
+                valueListenable: userNameNotifier,
+                builder: (context, userName, child) {
+                  return Text(
+                    'Welcome, $userName',
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  );
+                },
               ),
 
               const SizedBox(height: 10),
@@ -147,8 +144,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // Samler menu-knapperne ét sted, så de kan genbruges
-  // både i portrait- og landscape-layoutet.
+  // Menu-knapperne bruges både i portrait og landscape.
   List<Widget> menuButtons(BuildContext context) {
     return [
       SizedBox(
