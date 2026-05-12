@@ -16,11 +16,22 @@ class _QuizScreenState extends State<QuizScreen> {
   );
 
   late Future<List<dynamic>> questions;
+  int customQuestionCount = 0;
 
   @override
   void initState() {
     super.initState();
+
     questions = quizRepository.getQuestions();
+    loadCustomQuestionCount();
+  }
+
+  Future<void> loadCustomQuestionCount() async {
+    final count = await quizRepository.getCustomQuestionCount();
+
+    setState(() {
+      customQuestionCount = count;
+    });
   }
 
   String cleanText(String text) {
@@ -32,6 +43,54 @@ class _QuizScreenState extends State<QuizScreen> {
         .replaceAll('&rsquo;', "'")
         .replaceAll('&ldquo;', '"')
         .replaceAll('&rdquo;', '"');
+  }
+
+  Future<void> refreshQuestions() async {
+    setState(() {
+      questions = quizRepository.getQuestions();
+    });
+
+    await loadCustomQuestionCount();
+  }
+
+  Future<void> deleteQuestion(int index) async {
+    await quizRepository.deleteCustomQuestion(index);
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Question deleted'),
+      ),
+    );
+
+    await refreshQuestions();
+  }
+
+  void showDeleteDialog(int index) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Delete question'),
+          content: const Text('Are you sure you want to delete this question?'),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+              },
+              child: const Text('Cancel'),
+            ),
+
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+                deleteQuestion(index);
+              },
+              child: const Text('Delete'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   @override
@@ -57,7 +116,7 @@ class _QuizScreenState extends State<QuizScreen> {
             );
           }
 
-          final quizQuestions = snapshot.data!;
+          final quizQuestions = snapshot.data ?? [];
 
           return Column(
             children: [
@@ -77,6 +136,7 @@ class _QuizScreenState extends State<QuizScreen> {
                   itemCount: quizQuestions.length,
                   itemBuilder: (context, index) {
                     final question = quizQuestions[index];
+                    final isCustomQuestion = index < customQuestionCount;
 
                     return Card(
                       margin: const EdgeInsets.symmetric(
@@ -89,14 +149,26 @@ class _QuizScreenState extends State<QuizScreen> {
                       child: ListTile(
                         contentPadding: const EdgeInsets.all(14),
                         leading: CircleAvatar(
-                          backgroundColor: Colors.green.shade100,
+                          backgroundColor: isCustomQuestion
+                              ? Colors.orange.shade100
+                              : Colors.green.shade100,
                           child: Text('${index + 1}'),
                         ),
                         title: Text(
-                          cleanText(question['question']),
+                          cleanText(question['question'].toString()),
                           style: const TextStyle(fontSize: 15),
                         ),
-                        trailing: const Icon(Icons.arrow_forward),
+                        subtitle: isCustomQuestion
+                            ? const Text('Custom question')
+                            : const Text('API question'),
+                        trailing: isCustomQuestion
+                            ? IconButton(
+                          icon: const Icon(Icons.delete),
+                          onPressed: () {
+                            showDeleteDialog(index);
+                          },
+                        )
+                            : const Icon(Icons.arrow_forward),
                         onTap: () {
                           Navigator.push(
                             context,
